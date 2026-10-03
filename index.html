@@ -19,7 +19,7 @@
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100svh; }
     button { font: inherit; }
-    button:focus-visible, [tabindex="-1"]:focus-visible { outline: 3px solid #719c5c; outline-offset: 4px; }
+    button:focus-visible, textarea:focus-visible, [tabindex="-1"]:focus-visible { outline: 3px solid #719c5c; outline-offset: 4px; }
     [hidden] { display: none !important; }
     .shell { max-width: 548px; margin: 0 auto; padding: 32px 22px 24px; }
     header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
@@ -98,6 +98,8 @@
     .result-score small { font-size: 12px; }
     .result-details { display: flex; justify-content: center; gap: 25px; margin: 20px 0 5px; font-size: 12px; color: var(--muted); }
     .result-details b { color: var(--ink); }
+    .copy-status { margin: 16px 0 8px; color: var(--accent); font-size: 13px; line-height: 1.5; }
+    .copy-fallback { width: 100%; min-height: 82px; margin-top: 8px; padding: 12px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: inherit; font-size: 13px; line-height: 1.5; text-align: left; }
     .results .next { justify-content: center; gap: 12px; }
     @keyframes float { 50% { transform: translateY(-6px) rotate(5deg); } }
     @keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
@@ -164,6 +166,9 @@
       <p class="result-message" id="result-message"></p>
       <div class="result-score"><strong id="final-score"></strong><small>YOUR FINAL SCORE</small></div>
       <div class="result-details"><span><b id="correct-total"></b> correct</span><span><b id="wrong-total"></b> to explore</span></div>
+      <button class="next" id="copy-results" type="button">Copy results</button>
+      <p class="copy-status" id="copy-status" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+      <textarea class="copy-fallback" id="copy-fallback" aria-label="Results summary to copy manually" rows="3" readonly hidden></textarea>
       <button class="next" id="restart"><span aria-hidden="true">↻</span> Launch again</button>
     </section>
     <footer>Made for curious minds <span aria-hidden="true">✦</span> No timer. Just discovery.</footer>
@@ -262,6 +267,10 @@
       el("quiz").hidden = true;
       el("results").hidden = false;
       el("question-count").textContent = "10 of 10 explored";
+      el("copy-status").textContent = "";
+      el("copy-status").hidden = true;
+      el("copy-fallback").value = "";
+      el("copy-fallback").hidden = true;
       const reaction = score === 10
         ? { emoji: "🏆", label: "Trophy", title: "Cosmic expertise!", message: "A perfect mission. From the first launches to distant worlds, you really know your universe." }
         : score >= 7
@@ -279,11 +288,41 @@
       el("result-title").focus();
     }
 
+    function showManualCopy(summary) {
+      el("copy-status").textContent = "Clipboard access isn't available. Select and copy this summary manually:";
+      el("copy-status").hidden = false;
+      el("copy-fallback").value = summary;
+      el("copy-fallback").hidden = false;
+      el("copy-fallback").focus();
+      el("copy-fallback").select();
+    }
+
+    async function copyResults() {
+      const summary = `Orbit Space Quiz\nScore: ${el("final-score").textContent}\n${el("reaction").textContent}`;
+      el("copy-status").textContent = "";
+      el("copy-status").hidden = true;
+      el("copy-fallback").value = "";
+      el("copy-fallback").hidden = true;
+      try {
+        if (!navigator.clipboard?.writeText) {
+          showManualCopy(summary);
+          return;
+        }
+        await navigator.clipboard.writeText(summary);
+      } catch {
+        showManualCopy(summary);
+        return;
+      }
+      el("copy-status").textContent = "Results copied to clipboard.";
+      el("copy-status").hidden = false;
+    }
+
     el("next").addEventListener("click", () => {
       if (!locked) return;
       if (current === questions.length - 1) showResults();
       else { current++; renderQuestion(); }
     });
+    el("copy-results").addEventListener("click", copyResults);
     el("restart").addEventListener("click", () => {
       current = 0; score = 0; answered = 0;
       el("results").hidden = true;
