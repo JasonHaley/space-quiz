@@ -19,7 +19,7 @@
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100svh; }
     button { font: inherit; }
-    button:focus-visible, textarea:focus-visible, [tabindex="-1"]:focus-visible { outline: 3px solid #719c5c; outline-offset: 4px; }
+    button:focus-visible, textarea:focus-visible, input:focus-visible, [tabindex="-1"]:focus-visible { outline: 3px solid #719c5c; outline-offset: 4px; }
     [hidden] { display: none !important; }
     .shell { max-width: 548px; margin: 0 auto; padding: 32px 22px 24px; }
     header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
@@ -98,6 +98,8 @@
     .result-score small { font-size: 12px; }
     .result-details { display: flex; justify-content: center; gap: 25px; margin: 20px 0 5px; font-size: 12px; color: var(--muted); }
     .result-details b { color: var(--ink); }
+    .shuffle-option { display: flex; align-items: flex-start; gap: 10px; margin: 20px 0 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); text-align: left; font-size: 13px; line-height: 1.5; cursor: pointer; }
+    .shuffle-option input { flex: 0 0 18px; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent); }
     .copy-status { margin: 16px 0 8px; color: var(--accent); font-size: 13px; line-height: 1.5; }
     .copy-fallback { width: 100%; min-height: 82px; margin-top: 8px; padding: 12px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: inherit; font-size: 13px; line-height: 1.5; text-align: left; }
     .results .next { justify-content: center; gap: 12px; }
@@ -169,6 +171,7 @@
       <button class="next" id="copy-results" type="button">Copy results</button>
       <p class="copy-status" id="copy-status" role="status" aria-live="polite" aria-atomic="true" hidden></p>
       <textarea class="copy-fallback" id="copy-fallback" aria-label="Results summary to copy manually" rows="3" readonly hidden></textarea>
+      <label class="shuffle-option"><input id="shuffle-questions" type="checkbox">Shuffle question order on the next attempt</label>
       <button class="next" id="restart"><span aria-hidden="true">↻</span> Launch again</button>
     </section>
     <footer>Made for curious minds <span aria-hidden="true">✦</span> No timer. Just discovery.</footer>
@@ -188,6 +191,7 @@
       { category: "Exploring Saturn", question: "Which moon did the Huygens probe land on in 2005?", answers: ["Europa", "Enceladus", "Titan", "Ganymede"], correct: 2, explanation: "Huygens landed on Saturn's moon Titan on January 14, 2005. It was the first spacecraft to land on a world in the outer Solar System." }
     ];
     const el = (id) => document.getElementById(id);
+    let attemptQuestions = questions;
     let current = 0;
     let score = 0;
     let answered = 0;
@@ -202,7 +206,7 @@
 
     function renderQuestion(focus = true) {
       locked = false;
-      const item = questions[current];
+      const item = attemptQuestions[current];
       el("question-count").textContent = `Question ${current + 1} of ${questions.length}`;
       el("category").textContent = item.category;
       el("question-no").textContent = `${String(current + 1).padStart(2, "0")} / ${questions.length}`;
@@ -234,7 +238,7 @@
     function selectAnswer(index) {
       if (locked) return;
       locked = true;
-      const item = questions[current];
+      const item = attemptQuestions[current];
       const correct = index === item.correct;
       answered++;
       if (correct) score++;
@@ -317,6 +321,15 @@
       el("copy-status").hidden = false;
     }
 
+    function shuffleQuestions(source) {
+      const shuffled = source.slice();
+      for (let index = shuffled.length - 1; index > 0; index--) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+      }
+      return shuffled;
+    }
+
     el("next").addEventListener("click", () => {
       if (!locked) return;
       if (current === questions.length - 1) showResults();
@@ -325,6 +338,7 @@
     el("copy-results").addEventListener("click", copyResults);
     el("restart").addEventListener("click", () => {
       current = 0; score = 0; answered = 0;
+      attemptQuestions = el("shuffle-questions").checked ? shuffleQuestions(questions) : questions;
       el("results").hidden = true;
       el("quiz").hidden = false;
       updateProgress();
